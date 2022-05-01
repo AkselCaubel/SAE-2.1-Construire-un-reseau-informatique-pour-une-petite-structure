@@ -1,0 +1,284 @@
+Aksel
+PAULET
+
+
+SAE 21
+Journal Individuel
+			
+
+Mes réalisations sont les suivantes :
+
+	- Toute la partie virtualisation du GNS3
+	- Règles de Destination NAT sur le firewall du routeur Mikrotik
+	- Rectification et adaptation du serveur DNS fait initialement par Donovan
+	
+	
+Travail apporté par partie : 
+
+- Partie GNS3
+
+	Tout d'abord la création d'un adressage réseau a du être mis en place:
+	Prennant une adresse pour notre réseau d'entreprise en 171.69.0.0/16
+	j'ai choisi de prendre :
+	171.69.1.0/24 pour l'Administration
+	171.69.2.0/24 pour les Commerciaux
+	171.69.3.0/24 pour le Service Informatique
+	171.69.4.0/24 pour les serveurs 
+	
+	
+	Première mise en place : 
+	
+		Création des VLANs :
+		
+			Sur GNS3 j'ai du changer le mode d'un routeur cisco pour le faire passer en switch.
+			Une fois dans ce dernier il a fallu créer des VLANs grâce au commande suivante dans le mode enable:
+				vlan database
+				vlan X name toto
+			En remplaçant X par le numéro de VLAN et toto par le nom du VLAN. 
+			Je suis parti du VLAN 100 à 400 et avec pour nom les différents départements afin d'avoir le plus de facilité à identifier les VLANs.
+			Dans le but de vérifier si nos VLANs sont bien crées, l'on utilisera la commande : show current lorsque nous sommes dans le mode "vlan" initié avec la commande :
+			"vlan database"
+			
+			
+			Ensuite il faut attribuer à chaque interface son appartenant à un VLAN. Pour cela, dans le mode configuration on répète pour chaque interface : 
+			
+			
+			interface X/X			| X représentant l'interface
+			switchport mode access
+			switchport access vlan X	| X représentant le numéro du VLAN
+			
+			Pour l'interface reliant le switch au routeur l'on fera : 
+			switchport mode trunk
+
+	
+			Une fois ce dernier effectué, il a fallu s'occuper du routeur : 
+			Pour cela sur l'interface de la patte interne du routeur, il faut créer des sous interfaces que l'on va encapsuler.
+			
+			Pour chaque VLAN on fera alors :
+			conf t
+			int X/X.Y							| Y étant le numéro de la sous interface
+			encapsulation dot1Q X					| X étant le numéro du VLAN   
+			ip address 171.69.X.254 255.255.255.0 		| X allant de 1 à 4 par rapport au vlan
+			no shut 
+			exit
+			
+			Maintenant les VLANs sont crées et "opérationnels"
+		
+	
+			Afin de vérifier que les VLANs sont mis en place et que la connectivité entre eux fonctionne ( sans règle ) j'ai mis par la suite en place le serveur DHCP 
+			
+		Mise en place du DHCP par Vlan :
+			
+			Le routeur Cisco proposant cette fonctionnalité le serveur DHCP a été paramétré sur ce dernier.
+			
+			Il a suffit de faire les commandes suivantes : 
+			
+			Dans le monde configuration : 
+			
+			ip dhcp pool administration
+   			  network 171.69.X.0 255.255.255.0	| X allant de 1 à 3 par rapport au vlan
+   			  dns-server 192.168.71.53 		| Adresse IP choisie pour le serveur DNS de la DMZ 
+   			  default-router 171.69.X.254		| X allant de 1 à 3 par rapport au vlan
+			
+			J'ai choisi de ne pas faire de DHCP pour le VLAN 4 car ce dernier étant réservé pour les serveurs, j'ai attribué manuellement l'adresse ip afin quelle soit fixe, dans le
+			fichier /etc/network/interfaces en rajoutant :
+				auto ens3 				|ens3 étant l'interface
+				iface ens3 inet static
+				address 171.69.4.1
+				netmask 255.255.255.0
+				gateway 171.69.4.254
+			
+	            Afin que nos ordinateurs prennent automatiquement une adresse IP sans que les moldus ouvrent un terminal, j'ai placé dans le ".bashrc" un "dhclient -v" pour 
+			qu'au démarrage d'une session une adresse soit demandée avec gayteway et le serveur dns. le "-v" étant l'option verbose l'on peut voir les étapes dans le terminal.
+			Cela aurait pu se faire directement avec le init.d mais aillant un jeu de caractères limités sur les images debian en possession cela était compliqué.
+			
+			Avant de mettre en place les ACLs je veux avoir un réseau qui marche totalement pour pouvoir tout tester en conditions réelles.
+			Afin de sortir de notre réseau on attribut une adresse ip à notre patte extérieur du routeur. 
+			Notre entreprise n'étant pas gérante de la DMZ on mettra cette interface en attribution dhcp : 
+			
+			Dans le menu de l'interface :
+				ip address dhcp
+			
+			Le réseau de l'entreprise étant en adressage privé pour des raisons évidentes; il faudra pour sortir de notre réseau faire de la translation d'adresse (NAT).
+			
+		Mise en place du Network Address Translation (NAT) :
+		
+			Dans la mise en place il faut créer une adresse ou une plage d'adresse utilisable à l'extérieur de notre routeur. Dans notre cas étant les seuls utilisateurs de la DMZ,
+			j'ai attribué les 20 premières adresses du réseau de la DMZ :
+			
+			ip nat pool addrExterieur 192.168.71.1 192.168.71.20 netmask 255.255.255.0| 
+			Dans notre projet une erreur a été faite dans le nommage de la pool. Ce nom est plus adéquat.
+			
+			Les accès à ces adresses se font via des "listes sources", on va donc dire que,
+			les adresses prisent par les interfaces appartenantes à cette liste "1" prennent une adresse dans la pool "addrExterieur" :
+			
+			ip nat inside source list 1 pool addrExterieur
+			
+			On autorise alors les réseaux suivant à accèder a cette liste 1 : 
+			
+			  access-list 1 permit 171.69.1.0 0.0.0.255
+			  access-list 1 permit 171.69.2.0 0.0.0.255
+			  access-list 1 permit 171.69.3.0 0.0.0.255
+			  access-list 1 permit 171.69.4.0 0.0.0.255
+			  
+			Et pour finir il faut dire quelles interfaces nécessitent de se faire translater en cas de sortie du réseau et quelle interface est celle de sortie : 
+			
+			Pour chaque sous interface VLAN ( sur le routeur ) :
+			  ip nat inside 
+			  
+			Pour l'interface de sortie:
+			  ip nat outside
+			  
+			Le NAT étant mis en place l'on peut maintenant accéder à internet !
+			
+			
+		Création des ACLs :
+		
+			Dans le réseau d'entreprise les utilisateurs ne peuvent pas voir accès à tout n'y à tous le monde.
+			
+			Dans la logique le Service Informatique a tous les droits d'accès à tous le monde pour pouvoir manager les Vlans, les postes clients ainsi que les serveurs.
+			Les règles de firewall étant bien faites le serveur est accessible que par l'intérieur donc ce dernier n'a pas besoin de règle spécifique car,
+			seul le service informatique peut se connecter au serveur pour d'autres raisons que de visualiser le site.
+			
+			
+			Les services Administratif et Commercial ont les mêmes droit d'accès :
+			
+				Ils peuvent accédés à internet et donc faire des requêtes DNS, ont le droit de regarder leurs mails / se syncroniser avec un serveur mail, faire des requêtes DHCP.
+				On interdira bien évidemment tout le reste.
+					{n'aillant pas de serveur smtp dans notre montage les règles sont uniquement basées sur ma lecture de documentation et non testées}
+				
+				Dans le but de faire le moins d'ensemble possible les règles plus principalement celles de connectivité avec le S.I ont été généralisées.
+				
+				On va avoir besoin de deux ensembles de règles : les règles qui entrent dans le réseau du VLAN et les règles qui sortent du VLAN.
+				
+				J'ai donc crée l'ensemble de règles utilisateurIN et utilisateurOUT : 
+				
+				  On crée les ensembles avec leurs règles dans le monde configuration : 
+				  
+				    ip access-list extended utilisateurIN			// Création de l'ensemble utilisateurIN
+				     permit icmp any any					// On autorise tous le protocole ICMP, pratique pour comprendre les problèmes réseau, tester la connectivité
+				     permit udp any any eq domain				// On autorise les réponses DNS venant du protocole udp
+ 				     permit tcp any any eq domain				// On autorise les réponses DNS venant du protocole tcp
+                             permit udp any host 255.255.255.255 eq bootps	// On autorise les réponses DHCP venant du port 67
+				     permit tcp any any eq www				// On autorise les réponses HTTP (port 80) du protocole tcp
+			           permit tcp any any eq 443				// On autorise les réponses HTTPS (port 443) du protocole tcp
+				     permit tcp any 171.69.3.0 0.0.0.255 established	// On autorise le protocole tcp en destination de n'importe quelle adresse tant qu'il vient du réseau du service 											  										   Informatique Si c'est il est établit / En train de s'établir
+				     permit tcp any any eq pop3				// autorise la synchronisation mail
+				     permit tcp any any eq smtp				// autorise l'accès au serveur mail
+				    
+				     exit 
+				     
+				     // Par défaut, une fois une liste de règle mise sur une interface, il va bloquer tout le reste.
+				     // Si jamais l'on souhaite toute fois si l'on veut mettre une double sécurité, on ferait : deny ip any any 
+				     // En fesant attention de bien le mettre à la fin de la liste.
+				     
+				    
+				    
+				    ip access-list extended utilisateurOUT		// Création de l'ensemble utilisateurOUT
+				      permit icmp any any					// On autorise tout le protocole ICMP, pratique pour comprendre les problèmes réseaux, tester la connectivité
+				      permit tcp any eq domain any				// On autorise les réponses DNS venant du protocole tcp
+			            permit udp any eq domain any				// On autorise les réponses DNS venant du protocole udp
+				      permit tcp any any eq domain				// On autorise les demandes DNS venant du protocole tcp
+				      permit udp any any eq domain				// On autorise les demandes DNS venant du protocole udp
+				      permit tcp any any range 32768 61000		// On autorise de sortir avec les ports temporaires sur le protocole tcp
+				      permit udp any host 255.255.255.255 eq bootps	// On autorise les demandes DHCP
+				      permit tcp 171.69.3.0 0.0.0.255 any			// On autorise de sortir les trames tcp en destination du service informatique depuis n'importe quelles sources.
+				      permit tcp any any eq pop3				// autorise la synchronisation mail
+				      permit tcp any any eq smtp				// autorise l'accès au serveur mail
+				      
+				     // Par défaut, une fois une liste de règles misent sur une interface, il m'a bloqué tous le reste.
+				     // Si jamais l'on souhaite toutes fois rebloquer ce derrier, on ferait : deni ip any any 
+				     // En fesant attention de bien le mettre à la fin.
+				     
+
+				Sur les sous-interfaces appartenant aux VLANs Administration et Commercial, on applique les règles :
+				
+					ip access-group utilisateurIN in
+ 					ip access-group utilisateurOUT out
+
+			
+				Avec toutes ces règles, le réseau fonctionne correctement -> Voir preuves capture d'écran.
+				
+				
+			Mise en place du Destination NAT :
+			
+				Le Destination NAT se met directement sur le FireWall dans la partie NAT.
+				
+				Pour faire du Dnat il nous faut choisir un filtre par rapport au protocole/aux ports ainsi qu'à la redirection souhaitée.
+				Le tout en prenant en compte que tout le trafic ne doit pas être capté. Notre entreprise a aussi besoin de traversé ce FireWall.
+				
+				Pour le serveur web :
+					Tout ce qui vient sur l'adresse ip de la patte externe de notre routeur sur le port 80 & protocole tcp et ne provenant pas de port temporaire,
+					doit être redirigé sur l'adresse 192.168.71.53 sur le port 80: 
+					
+					ip firewall nat add action=dst-nat chain=dstnat port=80 protocol=tcp src-port=!32768-61000 to-addresses=192.168.71.53 to-ports=80
+					
+				Pour le serveur DNS :
+					Tous ce qui vient sur l'adresse ip de la patte externe de notre routeur sur le port 53 & protocole tcp ou udp et ne provenant pas de port temporaire,
+					doit être redirigé sur l'adresse 192.168.71.53 sur le port 53:
+					
+ 
+					chain=dstnat action=dst-nat to-addresses=192.168.71.53 to-ports=53 protocol=udp src-port=!32768-61000 dst-port=53
+					chain=dstnat action=dst-nat to-addresses=192.168.71.53 to-ports=53 protocol=tcp src-port=!32768-61000 dst-port=53
+
+
+
+Dysfonctionnements rencontrés & comment repérer / régler :
+
+	Dysfonctionnement DNS :
+	
+			Grâce aux traces laissées par Donovan j'ai pu reconstituer la structure du serveur DNS assez faciliement en mettant en place notre propre région avec notre adressage et nom de domaine.
+			Mais après plusieurs essaies il met impossible d'utiliser correctement le DNS. Tous d'abord car le projet virtuel a été fini alors que le DNS de l'IUT n'était plus accessible.
+			De se fait pour avoir une accessibilité et marcher depuis n'importe ou, j'ai paramètré comme serveur DNS de notre serveur, le serveur DNS de google (8.8.8.8).
+			Cela ne marchant pas non plus j'ai pu grâce à Wireshark remarquer qu'aucune requête était faite au serveur de google lorsque notre DNS ne connait pas le domaine recherché.
+			Après réflection et souvenir du fonctionnement des serveurs DNS vus en R203 j'ai compris que le problème venait des requêtes DNS récursives. Je me lança donc dans les forums et 
+			trouver ce qu'il nous fallait de plus : allow-recursion {any;}; dans le fichier :
+			/etc/bind/named.conf.options
+			
+			Adaptation sur serveur DNS pour les deux serveurs Interne et Externe.
+			
+	Dysfonctionnement VLAN : 
+	
+			Le dysfonctionnement des VLANs c'est remarqué plusieurs fois et pour différentes raisons qui pour certaines restent encore du bug résolu par un redémarage.
+			
+			Que ce soit de l'interface éteinte à des modes mal configurés sur le switch le mécanisme de repérage a toujours été le même:
+				On analyse les trames avec WireShark de bout en bout, regardant a la sortie de l'ordinateur jusqu'au routeur. 
+				cela permet de savoir si c'est notre switch ou notre routeur qui a un problème cela nous laisse alors corriger sur les interfaces demander.
+				
+			Juste avant la mise en place du NAT, malgré le fait de savoir qu'il fallait faire du nat je n'ai pas tous de suite compris pourquoi je n'avais pas de réponse lorsque je faisais un ping vers
+			8.8.8.8. Pour cela je me suis servis du protocol ICMP qui me renvoyer un problème dans wireshark et voyant qu'une adresse ne fesant pas partir du réseau de la DMZ n'arriver pas a se faire
+			router, la solution est paru évidente. 
+			
+	Dysfonctionnement ACL : 
+			Ce qui a mis le plus de temps ce sont les ACLs, je me suis rendu compte que je n'étais absolument pas au point sur le sujet. 
+			Pour régler se problème j'ai regardé plusieurs forums et je me suis retrouvé a lire un cours de 83 diaporama pour être sûr de bien tout comprendre et réussir.
+			Mais tout de même certains problèmes ont persisté malgré mes recherches donc encore à l'aide de wireshark je me penche sur les ports utilisés.
+			Observant des ports du côté client qui changeaient mais toujours dans la même tranche je me suis mis à la recherche pour mieux comprendre pourquoi ces port là pour mieux réussir mes règles.
+			A partir de là c'est des informations données par aws le service d'Amazon que j'ai pu comprendre et grâce à celui-ci résoudre mes problèmes. 
+			
+	Installation d'un poste client :
+	
+			Dans ce projet il était prévu que je fasse tout le montage d'un poste client en plus des règles et accès de chacun. Pour chaque poste il y avait donc un utilisateur test avec seulement
+			certains accès. Malheuresement gns3 c'est fermé de lui même me faisant perdre cette partie de mon travail. N'aillant pas le temps de le refaire, seul l'utilisateur ROOT est disponible.
+			
+			J'ai eu un problème au niveau du langage clavier sur les images Debian: le clavier ne prend pas en compte toutes les touches et change certaines autres. Comme les ":" les "." ou encore les "/".
+			Il m'a donc fallu faire de nombreuses recherches infructueuses. Après 1h de recherche pour une solution j'ai pu demander à Monsieur Druon de l'aide et même avec ses connaissances nous 		 
+			n'avons pas trouvé le problème. L'image ne voulait pas prendre en compte les changements de langue sauf le passage querty et azerty qui était inversé ( pour écrire azerty il faut être en 				
+                  mode querty) et les caractères spéciaux toujours introuvables. 
+			
+	Choix du matériel :
+			
+			Au début du projet, comme tous les autres groupes j'utilisais les contenaires Docker mis à disposition comme poste client mais à chaque redémarrage tout s'effacer.
+			Après plusieurs recherches impossible de comprendre comment fixer leurs mémoires. 
+			J'ai également cherché à récupérer dans les fichiers leur configuration pour les remettrent au démarrage du projet mais appart sauvegarder leur adressage ce n'étais pas fructueux.
+			J'ai donc commencé à chercher d'autres images pour garder mes configurations d'un jour à l'autre et donc perdre moins de temps à chaque début de scéance.
+			A ce moment là j'ai trouvé les images actuelles, certes beaucoup plus lourdes mais au moins les configurations restent.
+			
+			Il restait également un autre problème qui était la visualisation de mes sites web. Au début je pensais le faire avec la commande "wget" pour récupérer le fichier html du site,
+			mais cela n'aurait pas était représentatif du réseau de l'entreprise. J'ai donc utilisé une image vu en R201 pour avoir un navigateur dans GNS3. Cela fait encore grossir le projet 
+			
+	Choix de la plateforme de rendu :
+	
+			Afin de pouvoir rendre le projet qui au final avec les images fait 1,4Go GitHub ne prenant pas ce poids là et moddle non plus j'ai du utiliser google drive avec un lien de partage visible sur le GitHub de groupe.
+	
+			 
