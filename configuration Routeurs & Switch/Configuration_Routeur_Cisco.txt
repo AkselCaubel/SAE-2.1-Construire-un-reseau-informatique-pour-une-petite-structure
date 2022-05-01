@@ -1,0 +1,190 @@
+Current configuration : 3281 bytes
+!
+version 12.4
+service timestamps debug datetime msec
+service timestamps log datetime msec
+no service password-encryption
+!
+hostname R1
+!
+boot-start-marker
+boot-end-marker
+!
+enable password torototo
+!
+no aaa new-model
+memory-size iomem 5
+no ip icmp rate-limit unreachable
+ip cef
+!
+!
+no ip dhcp use vrf connected
+!
+ip dhcp pool administration
+   network 171.69.1.0 255.255.255.0
+   dns-server 192.168.71.53 
+   default-router 171.69.1.254 
+!
+ip dhcp pool commerciaux
+   network 171.69.2.0 255.255.255.0
+   default-router 171.69.2.254 
+   dns-server 192.168.71.53 
+!
+ip dhcp pool si
+   network 171.69.3.0 255.255.255.0
+   default-router 171.69.3.254 
+   dns-server 192.168.71.53 
+!
+!
+no ip domain lookup
+ip domain name 404Industries.fr
+ip auth-proxy max-nodata-conns 3
+ip admission max-nodata-conns 3
+!
+!
+!
+!         
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+username aksel password 0 torototo
+!
+!
+ip tcp synwait-time 5
+ip ssh version 2
+! 
+!
+!
+!
+!         
+interface FastEthernet0/0
+ no ip address
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/0.100
+ encapsulation dot1Q 100
+ ip address 171.69.1.254 255.255.255.0
+ ip access-group utilisateurIN in
+ ip access-group utilisateurOUT out
+ ip nat inside
+ ip virtual-reassembly
+!
+interface FastEthernet0/0.200
+ encapsulation dot1Q 200
+ ip address 171.69.2.254 255.255.255.0
+ ip access-group utilisateurIN in
+ ip access-group utilisateurOUT out
+ ip nat inside
+ ip virtual-reassembly
+!
+interface FastEthernet0/0.300
+ encapsulation dot1Q 300
+ ip address 171.69.3.254 255.255.255.0
+ ip nat inside
+ ip virtual-reassembly
+!
+interface FastEthernet0/0.400
+ encapsulation dot1Q 400
+ ip address 171.69.4.254 255.255.255.0
+ ip nat inside
+ ip virtual-reassembly
+!
+interface FastEthernet0/1
+ ip address dhcp
+ ip nat outside
+ ip virtual-reassembly
+ duplex auto
+ speed auto
+!
+interface Serial1/0
+ no ip address
+ shutdown
+ serial restart-delay 0
+!
+interface Serial1/1
+ no ip address
+ shutdown
+ serial restart-delay 0
+!
+interface Serial1/2
+ no ip address
+ shutdown
+ serial restart-delay 0
+!
+interface Serial1/3
+ no ip address
+ shutdown
+ serial restart-delay 0
+!
+ip forward-protocol nd
+!
+!
+no ip http server
+no ip http secure-server
+ip nat pool administration 192.168.71.1 192.168.71.20 netmask 255.255.255.0
+ip nat inside source list 1 pool administration
+!
+ip access-list extended utilisateurIN
+ permit icmp any any
+ permit udp any any eq domain
+ permit tcp any any eq domain
+ permit udp any host 255.255.255.255 eq bootps
+ permit tcp any any eq www
+ permit tcp any any eq 443
+ permit tcp any 171.69.3.0 0.0.0.255 established
+ip access-list extended utilisateurOUT
+ permit icmp any any
+ permit tcp any eq domain any
+ permit udp any eq domain any
+ permit tcp any any eq domain
+ permit udp any any eq domain
+ permit tcp any any range 32768 61000
+ permit udp any host 255.255.255.255 eq bootps
+ permit tcp 171.69.3.0 0.0.0.255 any
+!
+access-list 1 permit 171.69.1.0 0.0.0.255
+access-list 1 permit 171.69.2.0 0.0.0.255
+access-list 1 permit 171.69.3.0 0.0.0.255
+access-list 1 permit 171.69.4.0 0.0.0.255
+no cdp log mismatch duplex
+!         
+!
+!
+control-plane
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+line con 0
+ exec-timeout 0 0
+ privilege level 15
+ logging synchronous
+line aux 0
+ exec-timeout 0 0
+ privilege level 15
+ logging synchronous
+line vty 0 4
+ login local
+ transport input ssh
+ transport output ssh
+!
+!
+end
+

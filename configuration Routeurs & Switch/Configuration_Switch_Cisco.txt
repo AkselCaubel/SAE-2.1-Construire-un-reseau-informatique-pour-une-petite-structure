@@ -1,0 +1,228 @@
+Current configuration : 1588 bytes
+!
+version 12.4
+service timestamps debug datetime msec
+service timestamps log datetime msec
+no service password-encryption
+!
+hostname SW
+!
+boot-start-marker
+boot-end-marker
+!
+!
+no aaa new-model
+memory-size iomem 5
+no ip icmp rate-limit unreachable
+ip cef
+!
+!
+!
+!
+no ip domain lookup
+ip auth-proxy max-nodata-conns 3
+ip admission max-nodata-conns 3
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+ip tcp synwait-time 5
+! 
+!         
+!
+!
+!
+interface FastEthernet0/0
+ no ip address
+ shutdown
+ duplex auto
+ speed auto
+!
+interface FastEthernet0/1
+ no ip address
+ shutdown
+ duplex auto
+ speed auto
+!
+interface FastEthernet1/0
+!
+interface FastEthernet1/1
+ switchport access vlan 100
+!
+interface FastEthernet1/2
+!
+interface FastEthernet1/3
+!
+interface FastEthernet1/4
+ switchport mode trunk
+!
+interface FastEthernet1/5
+ switchport access vlan 200
+!
+interface FastEthernet1/6
+ switchport access vlan 300
+!
+interface FastEthernet1/7
+ switchport access vlan 300
+!
+interface FastEthernet1/8
+ switchport access vlan 100
+!
+interface FastEthernet1/9
+ switchport access vlan 200
+!
+interface FastEthernet1/10
+ switchport access vlan 400
+!
+interface FastEthernet1/11
+!
+interface FastEthernet1/12
+!
+interface FastEthernet1/13
+!
+interface FastEthernet1/14
+!
+interface FastEthernet1/15
+!
+interface Vlan1
+ no ip address
+!
+ip forward-protocol nd
+!
+!
+no ip http server
+no ip http secure-server
+!
+no cdp log mismatch duplex
+!
+!
+!
+control-plane
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+line con 0
+ exec-timeout 0 0
+ privilege level 15
+ logging synchronous
+line aux 0
+ exec-timeout 0 0
+ privilege level 15
+ logging synchronous
+line vty 0 4
+ login
+!
+!
+end 
+
+
+
+
+
+VLAN DATABASE : 
+
+  VLAN ISL Id: 1
+    Name: default
+    Media Type: Ethernet
+    VLAN 802.10 Id: 100001
+    State: Operational
+    MTU: 1500
+    Translational Bridged VLAN: 1002
+    Translational Bridged VLAN: 1003
+
+  VLAN ISL Id: 100
+    Name: administration
+    Media Type: Ethernet
+    VLAN 802.10 Id: 100100
+    State: Operational
+    MTU: 1500
+
+  VLAN ISL Id: 200
+    Name: commerciaux
+    Media Type: Ethernet
+    VLAN 802.10 Id: 100200
+    State: Operational
+    MTU: 1500
+
+  VLAN ISL Id: 300
+    Name: si
+    Media Type: Ethernet
+    VLAN 802.10 Id: 100300
+    State: Operational
+    MTU: 1500
+
+  VLAN ISL Id: 400
+    Name: serveur
+    Media Type: Ethernet
+    VLAN 802.10 Id: 100400
+    State: Operational
+    MTU: 1500
+
+  VLAN ISL Id: 1002
+    Name: fddi-default
+    Media Type: FDDI
+    VLAN 802.10 Id: 101002
+    State: Operational
+    MTU: 1500
+    Bridge Type: SRB
+    Translational Bridged VLAN: 1
+    Translational Bridged VLAN: 1003
+          
+  VLAN ISL Id: 1003
+    Name: token-ring-default
+    Media Type: Token Ring
+    VLAN 802.10 Id: 101003
+    State: Operational
+    MTU: 1500
+    Bridge Type: SRB
+    Ring Number: 0
+    Bridge Number: 1
+    Parent VLAN: 1005
+    Maximum ARE Hop Count: 7
+    Maximum STE Hop Count: 7
+    Backup CRF Mode: Disabled
+    Translational Bridged VLAN: 1
+    Translational Bridged VLAN: 1002
+
+  VLAN ISL Id: 1004
+    Name: fddinet-default
+    Media Type: FDDI Net
+    VLAN 802.10 Id: 101004
+    State: Operational
+    MTU: 1500
+    Bridge Type: SRB
+    Bridge Number: 1
+    STP Type: IBM
+
+  VLAN ISL Id: 1005
+    Name: trnet-default
+    Media Type: Token Ring Net
+    VLAN 802.10 Id: 101005
+    State: Operational
+    MTU: 1500
+    Bridge Type: SRB
+    Bridge Number: 1
+    STP Type: IBM
+
